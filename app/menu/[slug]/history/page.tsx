@@ -5,9 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Clock, ChefHat, Bell,
   CheckCircle, XCircle, Loader2, UtensilsCrossed,
-  ShoppingBag, Trash2,
+  ShoppingBag, Trash2, FileText,
 } from "lucide-react";
 import { ordersApi, Order } from "@/lib/ordersApi";
+import jsPDF from "jspdf";
 
 const STATUS_CONFIG = {
   PENDING: { label: "Menunggu", icon: Clock, color: "text-amber-400", bg: "bg-amber-500/15" },
@@ -28,6 +29,84 @@ export default function HistoryPage() {
 
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
+
+  const downloadStruk = (order: Order) => {
+    const doc = new jsPDF({ unit: "mm", format: [80, 220] });
+    const w = 80;
+    let y = 10;
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(order.store?.name || "MenuQR", w / 2, y, { align: "center" });
+    y += 6;
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    if (order.store?.address) {
+      doc.text(order.store.address, w / 2, y, { align: "center" });
+      y += 4;
+    }
+
+    y += 2;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, w - 5, y); y += 5;
+
+    doc.text(`No. Pesanan : ${order.orderNumber}`, 5, y); y += 5;
+    doc.text(`Meja        : ${order.tableNumber}`, 5, y); y += 5;
+    doc.text(`Tanggal     : ${new Date(order.createdAt).toLocaleString("id-ID")}`, 5, y); y += 5;
+
+    doc.line(5, y, w - 5, y); y += 5;
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Item", 5, y);
+    doc.text("Qty", 48, y);
+    doc.text("Total", 60, y);
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    doc.line(5, y, w - 5, y); y += 4;
+
+    order.items.forEach((item) => {
+      const name = item.menuItem.name.length > 22
+        ? item.menuItem.name.substring(0, 22) + "..."
+        : item.menuItem.name;
+      doc.text(name, 5, y);
+      doc.text(String(item.qty), 48, y);
+      doc.text(formatPrice(item.subtotal), 60, y);
+      y += 5;
+      if (item.note) {
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(`  Catatan: ${item.note}`, 5, y);
+        doc.setFontSize(8);
+        doc.setTextColor(0);
+        y += 4;
+      }
+    });
+
+    doc.line(5, y, w - 5, y); y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("TOTAL", 5, y);
+    doc.text(formatPrice(order.totalAmount), w - 5, y, { align: "right" });
+    y += 8;
+
+    if (order.notes) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.line(5, y, w - 5, y); y += 5;
+      doc.text(`Catatan: ${order.notes}`, 5, y);
+      y += 6;
+    }
+
+    doc.line(5, y, w - 5, y); y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("Terima kasih telah memesan!", w / 2, y, { align: "center" });
+    y += 4;
+    doc.text("Powered by MenuQR", w / 2, y, { align: "center" });
+
+    doc.save(`struk-${order.orderNumber}.pdf`);
+  };
 
   const fetchOrders = useCallback(async (numbers: string[]) => {
     if (numbers.length === 0) { setLoading(false); return; }
@@ -63,33 +142,23 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen bg-[#0F0D0A]">
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.3s ease forwards; }
       `}</style>
 
       {/* Header */}
       <div className="bg-[#1A1208] border-b border-white/5 sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
-          <button
-            onClick={() => router.push(`/menu/${slug}`)}
-            className="flex items-center gap-2 text-stone-400 hover:text-white transition-colors"
-          >
+          <button onClick={() => router.push(`/menu/${slug}`)} className="flex items-center gap-2 text-stone-400 hover:text-white transition-colors">
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm">Menu</span>
           </button>
           <p className="text-white font-bold text-sm">Riwayat Pesanan</p>
-          {orders.length > 0 && (
-            <button
-              onClick={handleClearHistory}
-              className="text-red-400 hover:text-red-300 transition-colors p-1"
-            >
+          {orders.length > 0 ? (
+            <button onClick={handleClearHistory} className="text-red-400 hover:text-red-300 transition-colors p-1">
               <Trash2 className="w-4 h-4" />
             </button>
-          )}
-          {orders.length === 0 && <div className="w-6" />}
+          ) : <div className="w-6" />}
         </div>
       </div>
 
@@ -166,6 +235,17 @@ export default function HistoryPage() {
                     <span className="text-stone-400 text-xs">Total</span>
                     <span className="text-amber-400 font-black text-sm">{formatPrice(order.totalAmount)}</span>
                   </div>
+
+                  {/* Tombol Download PDF — hanya COMPLETED */}
+                  {order.status === "COMPLETED" && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); downloadStruk(order); }}
+                      className="mt-3 w-full py-2.5 bg-blue-500/15 hover:bg-blue-500/25 active:scale-[0.98] text-blue-400 font-medium rounded-xl transition-all text-xs flex items-center justify-center gap-2 border border-blue-500/20"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Download Struk PDF
+                    </button>
+                  )}
                 </div>
               );
             })}

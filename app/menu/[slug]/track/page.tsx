@@ -5,9 +5,10 @@ import { useSearchParams, useRouter, useParams } from "next/navigation";
 import {
   CheckCircle, Clock, ChefHat, Bell,
   XCircle, Loader2, RefreshCw, ArrowLeft,
-  CreditCard, QrCode,
+  CreditCard, QrCode, FileText,
 } from "lucide-react";
 import { ordersApi, Order } from "@/lib/ordersApi";
+import jsPDF from "jspdf";
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -95,11 +96,87 @@ export default function TrackPage() {
   }, [order?.status, slug]);
 
   const formatPrice = (price: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(price);
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
+
+  const downloadStruk = () => {
+    if (!order) return;
+    const doc = new jsPDF({ unit: "mm", format: [80, 220] });
+    const w = 80;
+    let y = 10;
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(order.store?.name || "MenuQR", w / 2, y, { align: "center" });
+    y += 6;
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    if (order.store?.address) {
+      doc.text(order.store.address, w / 2, y, { align: "center" });
+      y += 4;
+    }
+
+    y += 2;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, w - 5, y); y += 5;
+
+    doc.text(`No. Pesanan : ${order.orderNumber}`, 5, y); y += 5;
+    doc.text(`Meja        : ${order.tableNumber}`, 5, y); y += 5;
+    doc.text(`Tanggal     : ${new Date(order.createdAt).toLocaleString("id-ID")}`, 5, y); y += 5;
+    doc.text(`Status      : ${order.status}`, 5, y); y += 5;
+
+    doc.line(5, y, w - 5, y); y += 5;
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Item", 5, y);
+    doc.text("Qty", 48, y);
+    doc.text("Total", 60, y);
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    doc.line(5, y, w - 5, y); y += 4;
+
+    order.items.forEach((item) => {
+      const name = item.menuItem.name.length > 22
+        ? item.menuItem.name.substring(0, 22) + "..."
+        : item.menuItem.name;
+      doc.text(name, 5, y);
+      doc.text(String(item.qty), 48, y);
+      doc.text(formatPrice(item.subtotal), 60, y);
+      y += 5;
+      if (item.note) {
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(`  Catatan: ${item.note}`, 5, y);
+        doc.setFontSize(8);
+        doc.setTextColor(0);
+        y += 4;
+      }
+    });
+
+    doc.line(5, y, w - 5, y); y += 5;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("TOTAL", 5, y);
+    doc.text(formatPrice(order.totalAmount), w - 5, y, { align: "right" });
+    y += 8;
+
+    if (order.notes) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.line(5, y, w - 5, y); y += 5;
+      doc.text(`Catatan: ${order.notes}`, 5, y);
+      y += 6;
+    }
+
+    doc.line(5, y, w - 5, y); y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text("Terima kasih telah memesan!", w / 2, y, { align: "center" });
+    y += 4;
+    doc.text("Powered by MenuQR", w / 2, y, { align: "center" });
+
+    doc.save(`struk-${order.orderNumber}.pdf`);
+  };
 
   if (loading) {
     return (
@@ -140,14 +217,8 @@ export default function TrackPage() {
   return (
     <div className="min-h-screen bg-[#0F0D0A]">
       <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .pulse { animation: pulse 2s infinite; }
         .fade-in { animation: fadeIn 0.4s ease forwards; }
       `}</style>
@@ -155,26 +226,18 @@ export default function TrackPage() {
       {/* Header */}
       <div className="bg-[#1A1208] border-b border-white/5 sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
-          <button
-            onClick={() => router.push(`/menu/${slug}`)}
-            className="flex items-center gap-2 text-stone-400 hover:text-white transition-colors"
-          >
+          <button onClick={() => router.push(`/menu/${slug}`)} className="flex items-center gap-2 text-stone-400 hover:text-white transition-colors">
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm">Menu</span>
           </button>
           <p className="text-white font-bold text-sm">Tracking Pesanan</p>
-          <button
-            onClick={() => fetchOrder(true)}
-            disabled={refreshing}
-            className="text-stone-400 hover:text-white transition-colors p-1"
-          >
+          <button onClick={() => fetchOrder(true)} disabled={refreshing} className="text-stone-400 hover:text-white transition-colors p-1">
             <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-4 fade-in pb-8">
-
         {/* Order number & status */}
         <div className="bg-[#1A1208] border border-white/5 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
@@ -187,8 +250,6 @@ export default function TrackPage() {
               <p className="text-white font-black text-lg">#{order.tableNumber}</p>
             </div>
           </div>
-
-          {/* Status badge */}
           <div className={`flex items-center gap-3 p-4 ${statusConfig.bg} rounded-xl`}>
             <div className={`${order.status === "PENDING" || order.status === "PREPARING" ? "pulse" : ""}`}>
               <StatusIcon className={`w-6 h-6 ${statusConfig.color}`} />
@@ -214,30 +275,18 @@ export default function TrackPage() {
                   <div key={step} className="flex items-center flex-1">
                     <div className="flex flex-col items-center">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
-                        isCompleted
-                          ? "bg-amber-500 border-amber-500"
-                          : isCurrent
-                          ? "border-amber-500 bg-amber-500/20"
-                          : "border-white/10 bg-white/5"
+                        isCompleted ? "bg-amber-500 border-amber-500" : isCurrent ? "border-amber-500 bg-amber-500/20" : "border-white/10 bg-white/5"
                       }`}>
-                        {isCompleted ? (
-                          <CheckCircle className="w-4 h-4 text-black" />
-                        ) : (
-                          <span className={`text-xs font-bold ${isCurrent ? "text-amber-400" : "text-stone-500"}`}>
-                            {stepNum}
-                          </span>
+                        {isCompleted ? <CheckCircle className="w-4 h-4 text-black" /> : (
+                          <span className={`text-xs font-bold ${isCurrent ? "text-amber-400" : "text-stone-500"}`}>{stepNum}</span>
                         )}
                       </div>
-                      <p className={`text-xs mt-1 font-medium ${
-                        isCompleted || isCurrent ? "text-amber-400" : "text-stone-500"
-                      }`}>
+                      <p className={`text-xs mt-1 font-medium ${isCompleted || isCurrent ? "text-amber-400" : "text-stone-500"}`}>
                         {labels[idx]}
                       </p>
                     </div>
                     {idx < STEPS.length - 1 && (
-                      <div className={`h-0.5 flex-1 mx-1 mb-4 transition-all ${
-                        currentStep > stepNum ? "bg-amber-500" : "bg-white/10"
-                      }`} />
+                      <div className={`h-0.5 flex-1 mx-1 mb-4 transition-all ${currentStep > stepNum ? "bg-amber-500" : "bg-white/10"}`} />
                     )}
                   </div>
                 );
@@ -254,18 +303,12 @@ export default function TrackPage() {
               <div key={item.id} className="flex items-center gap-3">
                 {item.menuItem.imageUrl && (
                   <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-white/5">
-                    <img
-                      src={item.menuItem.imageUrl}
-                      alt={item.menuItem.name}
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={item.menuItem.imageUrl} alt={item.menuItem.name} className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium">{item.menuItem.name}</p>
-                  {item.note && (
-                    <p className="text-stone-500 text-xs whitespace-pre-wrap">📝 {item.note}</p>
-                  )}
+                  {item.note && <p className="text-stone-500 text-xs whitespace-pre-wrap">📝 {item.note}</p>}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-stone-300 text-sm">x{item.qty}</p>
@@ -283,19 +326,13 @@ export default function TrackPage() {
         {/* Info pembayaran */}
         {order.store && (order.store.qrisImageUrl || order.store.bankName) && (
           <div className="bg-[#1A1208] border border-white/5 rounded-2xl p-5">
-            <button
-              onClick={() => setShowPayment(!showPayment)}
-              className="w-full flex items-center justify-between"
-            >
+            <button onClick={() => setShowPayment(!showPayment)} className="w-full flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-stone-400" />
                 <p className="text-white font-medium text-sm">Info Pembayaran</p>
               </div>
-              <div className={`transition-transform duration-200 text-stone-400 ${showPayment ? "rotate-180" : ""}`}>
-                ▾
-              </div>
+              <div className={`transition-transform duration-200 text-stone-400 ${showPayment ? "rotate-180" : ""}`}>▾</div>
             </button>
-
             {showPayment && (
               <div className="mt-4 space-y-4 fade-in">
                 {order.store.qrisImageUrl && (
@@ -305,11 +342,7 @@ export default function TrackPage() {
                       <p className="text-stone-300 text-sm font-medium">Bayar via QRIS</p>
                     </div>
                     <div className="bg-white p-3 rounded-xl inline-block">
-                      <img
-                        src={order.store.qrisImageUrl}
-                        alt="QRIS"
-                        className="w-48 h-48 object-contain mx-auto"
-                      />
+                      <img src={order.store.qrisImageUrl} alt="QRIS" className="w-48 h-48 object-contain mx-auto" />
                     </div>
                   </div>
                 )}
@@ -339,17 +372,26 @@ export default function TrackPage() {
           </div>
         )}
 
-        {/* Tombol Pesan Lagi */}
+        {/* Tombol Pesan Lagi & Download Struk */}
         {isDone && (
-          <button
-            onClick={() => {
-              localStorage.removeItem(`order_${slug}`);
-              router.push(`/menu/${slug}`);
-            }}
-            className="w-full py-4 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-black font-bold rounded-2xl transition-all text-base"
-          >
-            🍽️ Pesan Lagi
-          </button>
+          <>
+            <button
+              onClick={() => { localStorage.removeItem(`order_${slug}`); router.push(`/menu/${slug}`); }}
+              className="w-full py-4 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-black font-bold rounded-2xl transition-all text-base"
+            >
+              🍽️ Pesan Lagi
+            </button>
+
+            {order.status === "COMPLETED" && (
+              <button
+                onClick={downloadStruk}
+                className="w-full py-4 bg-blue-500 hover:bg-blue-400 active:scale-[0.98] text-white font-bold rounded-2xl transition-all text-base flex items-center justify-center gap-2"
+              >
+                <FileText className="w-5 h-5" />
+                Download Struk PDF
+              </button>
+            )}
+          </>
         )}
 
         {!isDone && (
