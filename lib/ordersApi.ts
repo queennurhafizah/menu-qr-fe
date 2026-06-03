@@ -73,11 +73,13 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
   store?: {
-    name: string;
-    qrisImageUrl: string | null;
-    bankName: string | null;
-    bankAccount: string | null;
-    bankHolder: string | null;
+  name: string;
+  address?: string | null;
+  phone?: string | null;
+  qrisImageUrl: string | null;
+  bankName: string | null;
+  bankAccount: string | null;
+  bankHolder: string | null;
   };
   items: {
     id: string;

@@ -111,7 +111,7 @@ export default function TrackPage() {
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    if (order.store?.address) {
+    if (order.store && order.store.address) {
       doc.text(order.store.address, w / 2, y, { align: "center" });
       y += 4;
     }
