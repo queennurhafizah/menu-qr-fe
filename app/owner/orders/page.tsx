@@ -4,47 +4,18 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, RefreshCw, Clock, ChefHat,
   Bell, CheckCircle, XCircle, ChevronRight,
-  ShoppingBag, TrendingUp, X,
+  ShoppingBag, TrendingUp, X, FileText,
 } from "lucide-react";
 import { storesApi, Store } from "@/lib/storesApi";
 import { ownerOrdersApi, Order } from "@/lib/ordersApi";
+import { exportMutasiPDF } from "@/lib/pdf/mutasi";
 
 const STATUS_CONFIG = {
-  PENDING: {
-    label: "Menunggu",
-    icon: Clock,
-    color: "text-amber-400",
-    bg: "bg-amber-500/15",
-    border: "border-amber-500/30",
-  },
-  PREPARING: {
-    label: "Dimasak",
-    icon: ChefHat,
-    color: "text-blue-400",
-    bg: "bg-blue-500/15",
-    border: "border-blue-500/30",
-  },
-  READY: {
-    label: "Siap",
-    icon: Bell,
-    color: "text-green-400",
-    bg: "bg-green-500/15",
-    border: "border-green-500/30",
-  },
-  COMPLETED: {
-    label: "Selesai",
-    icon: CheckCircle,
-    color: "text-stone-400",
-    bg: "bg-white/5",
-    border: "border-white/10",
-  },
-  CANCELLED: {
-    label: "Dibatalkan",
-    icon: XCircle,
-    color: "text-red-400",
-    bg: "bg-red-500/15",
-    border: "border-red-500/30",
-  },
+  PENDING: { label: "Menunggu", icon: Clock, color: "text-amber-400", bg: "bg-amber-500/15", border: "border-amber-500/30" },
+  PREPARING: { label: "Dimasak", icon: ChefHat, color: "text-blue-400", bg: "bg-blue-500/15", border: "border-blue-500/30" },
+  READY: { label: "Siap", icon: Bell, color: "text-green-400", bg: "bg-green-500/15", border: "border-green-500/30" },
+  COMPLETED: { label: "Selesai", icon: CheckCircle, color: "text-stone-400", bg: "bg-white/5", border: "border-white/10" },
+  CANCELLED: { label: "Dibatalkan", icon: XCircle, color: "text-red-400", bg: "bg-red-500/15", border: "border-red-500/30" },
 };
 
 const FILTER_TABS = [
@@ -56,12 +27,7 @@ const FILTER_TABS = [
   { label: "Dibatalkan", value: "CANCELLED" },
 ];
 
-function OrderCard({
-  order,
-  onNext,
-  onCancel,
-  loadingId,
-}: {
+function OrderCard({ order, onNext, onCancel, loadingId }: {
   order: Order;
   onNext: (id: string) => void;
   onCancel: (id: string) => void;
@@ -74,11 +40,7 @@ function OrderCard({
   const canCancel = order.status === "PENDING" || order.status === "PREPARING";
 
   const formatPrice = (price: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(price);
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
 
   const nextLabel: Record<string, string> = {
     PENDING: "Mulai Masak →",
@@ -88,7 +50,6 @@ function OrderCard({
 
   return (
     <div className={`bg-[#1A1208] border rounded-2xl overflow-hidden transition-all hover:border-opacity-60 ${config.border}`}>
-      {/* Header */}
       <div className={`flex items-center justify-between px-4 py-3 ${config.bg}`}>
         <div className="flex items-center gap-2">
           <StatusIcon className={`w-4 h-4 ${config.color}`} />
@@ -99,14 +60,11 @@ function OrderCard({
           <span className="text-stone-400 text-xs">{order.orderNumber}</span>
         </div>
       </div>
-
-      {/* Items */}
       <div className="px-4 py-3 space-y-1.5">
         {order.items.map((item) => (
           <div key={item.id} className="flex items-center justify-between">
             <span className="text-stone-300 text-sm">
-              {item.menuItem.name}
-              <span className="text-stone-500"> x{item.qty}</span>
+              {item.menuItem.name}<span className="text-stone-500"> x{item.qty}</span>
             </span>
             <span className="text-stone-400 text-sm">{formatPrice(item.subtotal)}</span>
           </div>
@@ -117,15 +75,12 @@ function OrderCard({
           </p>
         )}
       </div>
-
-      {/* Footer */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
         <div>
           <p className="text-stone-500 text-xs">Total</p>
           <p className="text-amber-400 font-black">{formatPrice(order.totalAmount)}</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Tombol cancel */}
           {canCancel && (
             <button
               onClick={() => onCancel(order.id)}
@@ -136,17 +91,13 @@ function OrderCard({
               Batalkan
             </button>
           )}
-          {/* Tombol next status */}
           {canNext && (
             <button
               onClick={() => onNext(order.id)}
               disabled={isLoading}
               className="px-3 py-2 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-black font-bold rounded-xl transition-all text-xs disabled:opacity-40 flex items-center gap-1.5"
             >
-              {isLoading
-                ? <Loader2 className="w-3 h-3 animate-spin" />
-                : <ChevronRight className="w-3 h-3" />
-              }
+              {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronRight className="w-3 h-3" />}
               {nextLabel[order.status] || "Lanjut"}
             </button>
           )}
@@ -160,17 +111,14 @@ export default function OrdersPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [summary, setSummary] = useState<{
-    totalOrders: number;
-    totalRevenue: number;
-    byStatus: Record<string, number>;
-  } | null>(null);
+  const [summary, setSummary] = useState<{ totalOrders: number; totalRevenue: number; byStatus: Record<string, number> } | null>(null);
   const [loadingStores, setLoadingStores] = useState(true);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState("");
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split("T")[0]);
 
   useEffect(() => {
     storesApi.getMy()
@@ -200,11 +148,8 @@ export default function OrdersPage() {
     }
   }, [selectedStore, activeFilter]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // Auto refresh setiap 15 detik
   useEffect(() => {
     const interval = setInterval(() => fetchOrders(true), 15000);
     return () => clearInterval(interval);
@@ -243,27 +188,19 @@ export default function OrdersPage() {
   };
 
   const formatPrice = (price: number) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(price);
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
 
   const pendingCount = orders.filter((o) => o.status === "PENDING").length;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.3s ease forwards; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 bg-amber-500 text-black px-4 py-3 rounded-xl font-medium text-sm shadow-lg fade-in">
           {toast}
@@ -283,17 +220,32 @@ export default function OrdersPage() {
           </div>
           <p className="text-stone-400 mt-1 text-sm">Kelola dan update status pesanan</p>
         </div>
-        <button
-          onClick={() => fetchOrders(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 active:scale-[0.98] border border-white/10 rounded-xl transition-all text-sm text-stone-300"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500/60 transition-all"
+          />
+          <button
+            onClick={() => selectedStore && exportMutasiPDF(orders, selectedStore, filterDate)}
+            disabled={orders.length === 0 || !selectedStore}
+            className="flex items-center gap-2 px-3 py-2.5 bg-blue-500 hover:bg-blue-400 active:scale-[0.98] disabled:opacity-40 text-white font-bold rounded-xl transition-all text-sm"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Export PDF</span>
+          </button>
+          <button
+            onClick={() => fetchOrders(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/10 active:scale-[0.98] border border-white/10 rounded-xl transition-all text-sm text-stone-300"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+        </div>
       </div>
 
-      {/* Pilih toko */}
       {stores.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-2">
           {stores.map((store) => (
@@ -301,9 +253,7 @@ export default function OrdersPage() {
               key={store.id}
               onClick={() => setSelectedStore(store)}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
-                selectedStore?.id === store.id
-                  ? "bg-amber-500 text-black"
-                  : "bg-white/5 text-stone-300 hover:bg-white/10 border border-white/10"
+                selectedStore?.id === store.id ? "bg-amber-500 text-black" : "bg-white/5 text-stone-300 hover:bg-white/10 border border-white/10"
               }`}
             >
               {store.name}
@@ -326,7 +276,6 @@ export default function OrdersPage() {
         </div>
       ) : (
         <>
-          {/* Rekap harian */}
           {summary && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               {[
@@ -346,29 +295,23 @@ export default function OrdersPage() {
             </div>
           )}
 
-          {/* Filter tabs */}
           <div className="flex gap-2 mb-4 overflow-x-auto hide-scrollbar pb-1">
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setActiveFilter(tab.value)}
                 className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
-                  activeFilter === tab.value
-                    ? "bg-amber-500 text-black"
-                    : "bg-white/5 text-stone-300 hover:bg-white/10 border border-white/10"
+                  activeFilter === tab.value ? "bg-amber-500 text-black" : "bg-white/5 text-stone-300 hover:bg-white/10 border border-white/10"
                 }`}
               >
                 {tab.label}
                 {tab.value === "PENDING" && pendingCount > 0 && (
-                  <span className="ml-1.5 bg-black/20 text-xs px-1.5 py-0.5 rounded-full">
-                    {pendingCount}
-                  </span>
+                  <span className="ml-1.5 bg-black/20 text-xs px-1.5 py-0.5 rounded-full">{pendingCount}</span>
                 )}
               </button>
             ))}
           </div>
 
-          {/* Daftar pesanan */}
           {loadingOrders ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
@@ -388,16 +331,14 @@ export default function OrdersPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 fade-in">
               {orders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onNext={handleNext}
-                  onCancel={handleCancel}
-                  loadingId={loadingId}
-                />
+                <OrderCard key={order.id} order={order} onNext={handleNext} onCancel={handleCancel} loadingId={loadingId} />
               ))}
             </div>
           )}
+
+          <p className="text-center text-stone-600 text-xs mt-6">
+            Diperbarui otomatis setiap 15 detik
+          </p>
         </>
       )}
     </div>

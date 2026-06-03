@@ -8,48 +8,33 @@ import {
   CreditCard, QrCode, FileText,
 } from "lucide-react";
 import { ordersApi, Order } from "@/lib/ordersApi";
-import jsPDF from "jspdf";
+import { downloadStruk } from "@/lib/pdf/struck";
 
 const STATUS_CONFIG = {
   PENDING: {
     label: "Menunggu Konfirmasi",
     desc: "Pesananmu sedang menunggu dikonfirmasi dapur",
-    icon: Clock,
-    color: "text-amber-400",
-    bg: "bg-amber-500/15",
-    step: 1,
+    icon: Clock, color: "text-amber-400", bg: "bg-amber-500/15", step: 1,
   },
   PREPARING: {
     label: "Sedang Dimasak",
     desc: "Dapur sedang menyiapkan pesananmu",
-    icon: ChefHat,
-    color: "text-blue-400",
-    bg: "bg-blue-500/15",
-    step: 2,
+    icon: ChefHat, color: "text-blue-400", bg: "bg-blue-500/15", step: 2,
   },
   READY: {
     label: "Pesanan Siap!",
     desc: "Pesananmu sudah siap, segera diambil",
-    icon: Bell,
-    color: "text-green-400",
-    bg: "bg-green-500/15",
-    step: 3,
+    icon: Bell, color: "text-green-400", bg: "bg-green-500/15", step: 3,
   },
   COMPLETED: {
     label: "Selesai",
     desc: "Pesanan telah selesai. Terima kasih!",
-    icon: CheckCircle,
-    color: "text-green-400",
-    bg: "bg-green-500/15",
-    step: 4,
+    icon: CheckCircle, color: "text-green-400", bg: "bg-green-500/15", step: 4,
   },
   CANCELLED: {
     label: "Dibatalkan",
     desc: "Pesanan telah dibatalkan",
-    icon: XCircle,
-    color: "text-red-400",
-    bg: "bg-red-500/15",
-    step: 0,
+    icon: XCircle, color: "text-red-400", bg: "bg-red-500/15", step: 0,
   },
 };
 
@@ -98,82 +83,6 @@ export default function TrackPage() {
   const formatPrice = (price: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
 
-  const downloadStruk = () => {
-    if (!order) return;
-    const doc = new jsPDF({ unit: "mm", format: [80, 220] });
-    const w = 80;
-    let y = 10;
-
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text(order.store?.name || "MenuQR", w / 2, y, { align: "center" });
-    y += 6;
-
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-
-    y += 2;
-    doc.setLineWidth(0.3);
-    doc.line(5, y, w - 5, y); y += 5;
-
-    doc.text(`No. Pesanan : ${order.orderNumber}`, 5, y); y += 5;
-    doc.text(`Meja        : ${order.tableNumber}`, 5, y); y += 5;
-    doc.text(`Tanggal     : ${new Date(order.createdAt).toLocaleString("id-ID")}`, 5, y); y += 5;
-    doc.text(`Status      : ${order.status}`, 5, y); y += 5;
-
-    doc.line(5, y, w - 5, y); y += 5;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Item", 5, y);
-    doc.text("Qty", 48, y);
-    doc.text("Total", 60, y);
-    y += 4;
-    doc.setFont("helvetica", "normal");
-    doc.line(5, y, w - 5, y); y += 4;
-
-    order.items.forEach((item) => {
-      const name = item.menuItem.name.length > 22
-        ? item.menuItem.name.substring(0, 22) + "..."
-        : item.menuItem.name;
-      doc.text(name, 5, y);
-      doc.text(String(item.qty), 48, y);
-      doc.text(formatPrice(item.subtotal), 60, y);
-      y += 5;
-      if (item.note) {
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        doc.text(`  Catatan: ${item.note}`, 5, y);
-        doc.setFontSize(8);
-        doc.setTextColor(0);
-        y += 4;
-      }
-    });
-
-    doc.line(5, y, w - 5, y); y += 5;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text("TOTAL", 5, y);
-    doc.text(formatPrice(order.totalAmount), w - 5, y, { align: "right" });
-    y += 8;
-
-    if (order.notes) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.line(5, y, w - 5, y); y += 5;
-      doc.text(`Catatan: ${order.notes}`, 5, y);
-      y += 6;
-    }
-
-    doc.line(5, y, w - 5, y); y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("Terima kasih telah memesan!", w / 2, y, { align: "center" });
-    y += 4;
-    doc.text("Powered by MenuQR", w / 2, y, { align: "center" });
-
-    doc.save(`struk-${order.orderNumber}.pdf`);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0F0D0A] flex items-center justify-center">
@@ -194,10 +103,7 @@ export default function TrackPage() {
           </div>
           <h2 className="text-white font-bold text-xl mb-2">Pesanan Tidak Ditemukan</h2>
           <p className="text-stone-400 text-sm mb-6">{error}</p>
-          <button
-            onClick={() => router.push(`/menu/${slug}`)}
-            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-black font-bold rounded-xl transition-all text-sm"
-          >
+          <button onClick={() => router.push(`/menu/${slug}`)} className="px-6 py-3 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-black font-bold rounded-xl transition-all text-sm">
             Kembali ke Menu
           </button>
         </div>
@@ -377,10 +283,9 @@ export default function TrackPage() {
             >
               🍽️ Pesan Lagi
             </button>
-
             {order.status === "COMPLETED" && (
               <button
-                onClick={downloadStruk}
+                onClick={() => downloadStruk(order)}
                 className="w-full py-4 bg-blue-500 hover:bg-blue-400 active:scale-[0.98] text-white font-bold rounded-2xl transition-all text-base flex items-center justify-center gap-2"
               >
                 <FileText className="w-5 h-5" />
