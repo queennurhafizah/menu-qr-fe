@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ShoppingCart, Plus, Minus, Trash2, X,
   Loader2, AlertCircle, UtensilsCrossed,
-  MapPin, Phone, CreditCard, QrCode, Check, Bell,
+  MapPin, Phone, CreditCard, QrCode, Check, Bell, ShoppingBag,
 } from "lucide-react";
 import { ordersApi, PublicStore, PublicMenuItem, CartItem } from "@/lib/ordersApi";
 import SearchBar from "@/components/search-bar";
@@ -101,7 +101,16 @@ export default function MenuPage() {
         source: "IN_APP",
         items: cart.map((c) => ({ menuItemId: c.menuItemId, qty: c.qty, note: c.note || undefined })),
       });
+
+      // Simpan ke active order
       localStorage.setItem(`order_${slug}`, order.orderNumber);
+
+      // Simpan ke history
+      const historyKey = `orders_history_${slug}`;
+      const existing = JSON.parse(localStorage.getItem(historyKey) || "[]");
+      const updated = [order.orderNumber, ...existing];
+      localStorage.setItem(historyKey, JSON.stringify(updated));
+
       setShowPaymentDesktop(false);
       router.push(`/menu/${slug}/track?order=${order.orderNumber}`);
     } catch (err: unknown) {
@@ -248,6 +257,13 @@ export default function MenuPage() {
             Lihat Pesanan Aktif
           </button>
         )}
+        <button
+          onClick={() => router.push(`/menu/${slug}/history`)}
+          className="w-full py-3 bg-white/5 hover:bg-white/10 active:scale-[0.98] text-stone-300 font-medium rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+        >
+          <ShoppingBag className="w-4 h-4" />
+          Riwayat Pesanan
+        </button>
       </div>
     </>
   );
@@ -479,6 +495,13 @@ export default function MenuPage() {
               </div>
               <p className="text-stone-400 text-sm font-medium">Keranjang kosong</p>
               <p className="text-stone-600 text-xs mt-1">Tambah menu untuk mulai memesan</p>
+              <button
+                onClick={() => router.push(`/menu/${slug}/history`)}
+                className="mt-4 flex items-center gap-2 text-stone-400 hover:text-white transition-colors text-xs"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                Riwayat Pesanan
+              </button>
             </div>
           ) : cartJSX}
         </aside>
@@ -511,6 +534,13 @@ export default function MenuPage() {
                 <span className="text-xs opacity-75 truncate">{activeOrderNumber}</span>
               </button>
             )}
+            <button
+              onClick={() => router.push(`/menu/${slug}/history`)}
+              className="flex items-center gap-3 bg-white/10 hover:bg-white/15 active:scale-[0.98] text-white font-bold px-6 py-4 rounded-2xl shadow-xl transition-all slide-up w-full"
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span className="flex-1 text-left">Riwayat Pesanan</span>
+            </button>
           </div>
         </div>
       )}
