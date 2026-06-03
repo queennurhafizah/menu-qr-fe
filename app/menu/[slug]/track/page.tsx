@@ -14,27 +14,42 @@ const STATUS_CONFIG = {
   PENDING: {
     label: "Menunggu Konfirmasi",
     desc: "Pesananmu sedang menunggu dikonfirmasi dapur",
-    icon: Clock, color: "text-amber-400", bg: "bg-amber-500/15", step: 1,
+    icon: Clock,
+    color: "text-amber-400",
+    bg: "bg-amber-500/15",
+    step: 1,
   },
   PREPARING: {
     label: "Sedang Dimasak",
     desc: "Dapur sedang menyiapkan pesananmu",
-    icon: ChefHat, color: "text-blue-400", bg: "bg-blue-500/15", step: 2,
+    icon: ChefHat,
+    color: "text-blue-400",
+    bg: "bg-blue-500/15",
+    step: 2,
   },
   READY: {
     label: "Pesanan Siap!",
     desc: "Pesananmu sudah siap, segera diambil",
-    icon: Bell, color: "text-green-400", bg: "bg-green-500/15", step: 3,
+    icon: Bell,
+    color: "text-green-400",
+    bg: "bg-green-500/15",
+    step: 3,
   },
   COMPLETED: {
     label: "Selesai",
     desc: "Pesanan telah selesai. Terima kasih!",
-    icon: CheckCircle, color: "text-green-400", bg: "bg-green-500/15", step: 4,
+    icon: CheckCircle,
+    color: "text-green-400",
+    bg: "bg-green-500/15",
+    step: 4,
   },
   CANCELLED: {
     label: "Dibatalkan",
     desc: "Pesanan telah dibatalkan",
-    icon: XCircle, color: "text-red-400", bg: "bg-red-500/15", step: 0,
+    icon: XCircle,
+    color: "text-red-400",
+    bg: "bg-red-500/15",
+    step: 0,
   },
 };
 
@@ -87,134 +102,73 @@ export default function TrackPage() {
     if (!order) return;
     const doc = new jsPDF({ unit: "mm", format: [80, 220] });
     const w = 80;
-    let y = 8;
+    let y = 10;
 
-    // Header
-    doc.setFillColor(26, 18, 8);
-    doc.rect(0, 0, w, 28, "F");
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(245, 158, 11);
-    doc.text(order.store?.name || "MenuQR", w / 2, y + 4, { align: "center" });
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(180, 180, 180);
-    if (order.store?.address) {
-      doc.text(order.store.address, w / 2, y + 10, { align: "center" });
-    }
-    if (order.store?.phone) {
-      doc.text(order.store.phone, w / 2, y + 15, { align: "center" });
-    }
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.text("Powered by MenuQR", w / 2, y + 20, { align: "center" });
-    y = 32;
+    doc.text(order.store?.name || "MenuQR", w / 2, y, { align: "center" });
+    y += 6;
 
-    // Info Pesanan
-    doc.setDrawColor(60, 40, 20);
-    doc.setLineWidth(0.3);
-    doc.line(5, y, w - 5, y); y += 4;
     doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(245, 158, 11);
-    doc.text("DETAIL PESANAN", w / 2, y, { align: "center" }); y += 4;
-    doc.line(5, y, w - 5, y); y += 4;
-
-    const infoRows = [
-      { label: "No. Pesanan", value: order.orderNumber },
-      { label: "Meja", value: `#${order.tableNumber}` },
-      { label: "Tanggal", value: new Date(order.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
-      { label: "Status", value: order.status },
-    ];
-
-    infoRows.forEach((row) => {
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text(row.label, 5, y);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(50, 50, 50);
-      doc.text(row.value, w - 5, y, { align: "right" });
-      y += 5;
-    });
+    doc.setFont("helvetica", "normal");
 
     y += 2;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, w - 5, y); y += 5;
+
+    doc.text(`No. Pesanan : ${order.orderNumber}`, 5, y); y += 5;
+    doc.text(`Meja        : ${order.tableNumber}`, 5, y); y += 5;
+    doc.text(`Tanggal     : ${new Date(order.createdAt).toLocaleString("id-ID")}`, 5, y); y += 5;
+    doc.text(`Status      : ${order.status}`, 5, y); y += 5;
+
+    doc.line(5, y, w - 5, y); y += 5;
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Item", 5, y);
+    doc.text("Qty", 48, y);
+    doc.text("Total", 60, y);
+    y += 4;
+    doc.setFont("helvetica", "normal");
     doc.line(5, y, w - 5, y); y += 4;
 
-    // Header Tabel
-    doc.setFillColor(245, 158, 11);
-    doc.rect(5, y - 3, w - 10, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.setTextColor(0, 0, 0);
-    doc.text("Item", 7, y + 1);
-    doc.text("Qty", 50, y + 1, { align: "center" });
-    doc.text("Total", w - 7, y + 1, { align: "right" });
-    y += 7;
-
-    // Items
-    order.items.forEach((item, idx) => {
-      if (idx % 2 === 0) {
-        doc.setFillColor(248, 244, 240);
-        doc.rect(5, y - 3, w - 10, 6, "F");
-      }
-      const name = item.menuItem.name.length > 24
-        ? item.menuItem.name.substring(0, 24) + "..."
+    order.items.forEach((item) => {
+      const name = item.menuItem.name.length > 22
+        ? item.menuItem.name.substring(0, 22) + "..."
         : item.menuItem.name;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(30, 30, 30);
-      doc.text(name, 7, y);
-      doc.text(String(item.qty), 50, y, { align: "center" });
-      doc.text(formatPrice(item.subtotal), w - 7, y, { align: "right" });
-      y += 6;
+      doc.text(name, 5, y);
+      doc.text(String(item.qty), 48, y);
+      doc.text(formatPrice(item.subtotal), 60, y);
+      y += 5;
       if (item.note) {
-        doc.setFontSize(6.5);
-        doc.setTextColor(120, 120, 120);
-        doc.text(`  📝 ${item.note}`, 7, y);
-        doc.setFontSize(7.5);
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(`  Catatan: ${item.note}`, 5, y);
+        doc.setFontSize(8);
+        doc.setTextColor(0);
         y += 4;
       }
     });
 
-    y += 1;
-    doc.setDrawColor(245, 158, 11);
-    doc.setLineWidth(0.5);
-    doc.line(5, y, w - 5, y); y += 1;
-
-    // Total
-    doc.setFillColor(26, 18, 8);
-    doc.rect(5, y, w - 10, 9, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(245, 158, 11);
-    doc.text("TOTAL", 9, y + 6);
-    doc.text(formatPrice(order.totalAmount), w - 7, y + 6, { align: "right" });
-    y += 13;
-
-    // Catatan
-    if (order.notes) {
-      doc.setDrawColor(60, 40, 20);
-      doc.setLineWidth(0.3);
-      doc.line(5, y, w - 5, y); y += 4;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Catatan:", 5, y); y += 4;
-      doc.setFont("helvetica", "normal");
-      doc.text(order.notes, 5, y); y += 6;
-    }
-
-    // Footer
-    doc.setDrawColor(60, 40, 20);
-    doc.setLineWidth(0.3);
     doc.line(5, y, w - 5, y); y += 5;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(245, 158, 11);
-    doc.text("Terima kasih telah memesan!", w / 2, y, { align: "center" }); y += 5;
+    doc.setFontSize(10);
+    doc.text("TOTAL", 5, y);
+    doc.text(formatPrice(order.totalAmount), w - 5, y, { align: "right" });
+    y += 8;
+
+    if (order.notes) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.line(5, y, w - 5, y); y += 5;
+      doc.text(`Catatan: ${order.notes}`, 5, y);
+      y += 6;
+    }
+
+    doc.line(5, y, w - 5, y); y += 5;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(8);
+    doc.text("Terima kasih telah memesan!", w / 2, y, { align: "center" });
+    y += 4;
     doc.text("Powered by MenuQR", w / 2, y, { align: "center" });
 
     doc.save(`struk-${order.orderNumber}.pdf`);
@@ -240,7 +194,10 @@ export default function TrackPage() {
           </div>
           <h2 className="text-white font-bold text-xl mb-2">Pesanan Tidak Ditemukan</h2>
           <p className="text-stone-400 text-sm mb-6">{error}</p>
-          <button onClick={() => router.push(`/menu/${slug}`)} className="px-6 py-3 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-black font-bold rounded-xl transition-all text-sm">
+          <button
+            onClick={() => router.push(`/menu/${slug}`)}
+            className="px-6 py-3 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-black font-bold rounded-xl transition-all text-sm"
+          >
             Kembali ke Menu
           </button>
         </div>
@@ -420,6 +377,7 @@ export default function TrackPage() {
             >
               🍽️ Pesan Lagi
             </button>
+
             {order.status === "COMPLETED" && (
               <button
                 onClick={downloadStruk}

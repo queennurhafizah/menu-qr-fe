@@ -33,134 +33,76 @@ export default function HistoryPage() {
   const downloadStruk = (order: Order) => {
     const doc = new jsPDF({ unit: "mm", format: [80, 220] });
     const w = 80;
-    let y = 8;
+    let y = 10;
 
-    // Header
-    doc.setFillColor(26, 18, 8);
-    doc.rect(0, 0, w, 28, "F");
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(245, 158, 11);
-    doc.text(order.store?.name || "MenuQR", w / 2, y + 4, { align: "center" });
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(180, 180, 180);
-    if (order.store?.address) {
-      doc.text(order.store.address, w / 2, y + 10, { align: "center" });
-    }
-    if (order.store?.phone) {
-      doc.text(order.store.phone, w / 2, y + 15, { align: "center" });
-    }
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.text("Powered by MenuQR", w / 2, y + 20, { align: "center" });
-    y = 32;
+    doc.text(order.store?.name || "MenuQR", w / 2, y, { align: "center" });
+    y += 6;
 
-    // Info Pesanan
-    doc.setDrawColor(60, 40, 20);
-    doc.setLineWidth(0.3);
-    doc.line(5, y, w - 5, y); y += 4;
     doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(245, 158, 11);
-    doc.text("DETAIL PESANAN", w / 2, y, { align: "center" }); y += 4;
-    doc.line(5, y, w - 5, y); y += 4;
-
-    const infoRows = [
-      { label: "No. Pesanan", value: order.orderNumber },
-      { label: "Meja", value: `#${order.tableNumber}` },
-      { label: "Tanggal", value: new Date(order.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) },
-      { label: "Status", value: order.status },
-    ];
-
-    infoRows.forEach((row) => {
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(120, 120, 120);
-      doc.text(row.label, 5, y);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(50, 50, 50);
-      doc.text(row.value, w - 5, y, { align: "right" });
-      y += 5;
-    });
+    doc.setFont("helvetica", "normal");
+    if (order.store?.address) {
+      doc.text(order.store.address, w / 2, y, { align: "center" });
+      y += 4;
+    }
 
     y += 2;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, w - 5, y); y += 5;
+
+    doc.text(`No. Pesanan : ${order.orderNumber}`, 5, y); y += 5;
+    doc.text(`Meja        : ${order.tableNumber}`, 5, y); y += 5;
+    doc.text(`Tanggal     : ${new Date(order.createdAt).toLocaleString("id-ID")}`, 5, y); y += 5;
+
+    doc.line(5, y, w - 5, y); y += 5;
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Item", 5, y);
+    doc.text("Qty", 48, y);
+    doc.text("Total", 60, y);
+    y += 4;
+    doc.setFont("helvetica", "normal");
     doc.line(5, y, w - 5, y); y += 4;
 
-    // Header Tabel
-    doc.setFillColor(245, 158, 11);
-    doc.rect(5, y - 3, w - 10, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.setTextColor(0, 0, 0);
-    doc.text("Item", 7, y + 1);
-    doc.text("Qty", 50, y + 1, { align: "center" });
-    doc.text("Total", w - 7, y + 1, { align: "right" });
-    y += 7;
-
-    // Items
-    order.items.forEach((item, idx) => {
-      if (idx % 2 === 0) {
-        doc.setFillColor(248, 244, 240);
-        doc.rect(5, y - 3, w - 10, 6, "F");
-      }
-      const name = item.menuItem.name.length > 24
-        ? item.menuItem.name.substring(0, 24) + "..."
+    order.items.forEach((item) => {
+      const name = item.menuItem.name.length > 22
+        ? item.menuItem.name.substring(0, 22) + "..."
         : item.menuItem.name;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
-      doc.setTextColor(30, 30, 30);
-      doc.text(name, 7, y);
-      doc.text(String(item.qty), 50, y, { align: "center" });
-      doc.text(formatPrice(item.subtotal), w - 7, y, { align: "right" });
-      y += 6;
+      doc.text(name, 5, y);
+      doc.text(String(item.qty), 48, y);
+      doc.text(formatPrice(item.subtotal), 60, y);
+      y += 5;
       if (item.note) {
-        doc.setFontSize(6.5);
-        doc.setTextColor(120, 120, 120);
-        doc.text(`  Catatan: ${item.note}`, 7, y);
-        doc.setFontSize(7.5);
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(`  Catatan: ${item.note}`, 5, y);
+        doc.setFontSize(8);
+        doc.setTextColor(0);
         y += 4;
       }
     });
 
-    y += 1;
-    doc.setDrawColor(245, 158, 11);
-    doc.setLineWidth(0.5);
-    doc.line(5, y, w - 5, y); y += 1;
-
-    // Total
-    doc.setFillColor(26, 18, 8);
-    doc.rect(5, y, w - 10, 9, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(245, 158, 11);
-    doc.text("TOTAL", 9, y + 6);
-    doc.text(formatPrice(order.totalAmount), w - 7, y + 6, { align: "right" });
-    y += 13;
-
-    // Catatan
-    if (order.notes) {
-      doc.setDrawColor(60, 40, 20);
-      doc.setLineWidth(0.3);
-      doc.line(5, y, w - 5, y); y += 4;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(7.5);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Catatan:", 5, y); y += 4;
-      doc.setFont("helvetica", "normal");
-      doc.text(order.notes, 5, y); y += 6;
-    }
-
-    // Footer
-    doc.setDrawColor(60, 40, 20);
-    doc.setLineWidth(0.3);
     doc.line(5, y, w - 5, y); y += 5;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(245, 158, 11);
-    doc.text("Terima kasih telah memesan!", w / 2, y, { align: "center" }); y += 5;
+    doc.setFontSize(10);
+    doc.text("TOTAL", 5, y);
+    doc.text(formatPrice(order.totalAmount), w - 5, y, { align: "right" });
+    y += 8;
+
+    if (order.notes) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.line(5, y, w - 5, y); y += 5;
+      doc.text(`Catatan: ${order.notes}`, 5, y);
+      y += 6;
+    }
+
+    doc.line(5, y, w - 5, y); y += 5;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
+    doc.setFontSize(8);
+    doc.text("Terima kasih telah memesan!", w / 2, y, { align: "center" });
+    y += 4;
     doc.text("Powered by MenuQR", w / 2, y, { align: "center" });
 
     doc.save(`struk-${order.orderNumber}.pdf`);
@@ -251,6 +193,7 @@ export default function HistoryPage() {
                   onClick={() => router.push(`/menu/${slug}/track?order=${order.orderNumber}`)}
                   className="bg-[#1A1208] border border-white/5 rounded-2xl p-4 hover:border-amber-500/20 transition-all cursor-pointer active:scale-[0.99]"
                 >
+                  {/* Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="text-white font-bold text-sm">{order.orderNumber}</p>
@@ -267,6 +210,7 @@ export default function HistoryPage() {
                     </div>
                   </div>
 
+                  {/* Items */}
                   <div className="space-y-1 mb-3">
                     {order.items.slice(0, 3).map((item) => (
                       <div key={item.id} className="flex items-center gap-2">
@@ -286,11 +230,13 @@ export default function HistoryPage() {
                     )}
                   </div>
 
+                  {/* Total */}
                   <div className="flex items-center justify-between pt-3 border-t border-white/5">
                     <span className="text-stone-400 text-xs">Total</span>
                     <span className="text-amber-400 font-black text-sm">{formatPrice(order.totalAmount)}</span>
                   </div>
 
+                  {/* Tombol Download PDF — hanya COMPLETED */}
                   {order.status === "COMPLETED" && (
                     <button
                       onClick={(e) => { e.stopPropagation(); downloadStruk(order); }}
